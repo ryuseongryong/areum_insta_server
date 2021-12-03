@@ -5,20 +5,21 @@ import { HttpService } from '@nestjs/axios';
 import * as puppeteer from 'puppeteer';
 import { ConfigService } from '@nestjs/config';
 import { throwIfEmpty } from 'rxjs';
+import { CheckUrlDto } from './dto/check-url.dto';
 
 @Injectable()
 export class ScrapingService {
   constructor(private configService: ConfigService) {}
   //: Observable<AxiosResponse<any, any>>
 
-  async findLikeCount(body) {
+  async findLikeCount(body: CheckUrlDto) {
     if (!body.url) {
       throw new NotFoundException();
     }
     const browser = await puppeteer.launch({
       headless: false,
       args: ['--window-size=1920,1080', '--disable-notifications'],
-      userDataDir: '/Users/seongryongryu/Desktop/Areum_Insta/areum-insta-py',
+      userDataDir: this.configService.get<string>('USERDATADIRECTORY'),
       // '/Users/seongryongryu/Library/Application Support/Google/Chrome/Default',
     });
     const page = await browser.newPage();
@@ -44,47 +45,53 @@ export class ScrapingService {
     }
 
     await page.goto(body.url);
-    await page.setDefaultNavigationTimeout(0);
-    await page.setDefaultTimeout(0);
+    // await page.setDefaultNavigationTimeout(0);
+    // await page.setDefaultTimeout(0);
     // await page.waitForNavigation();
 
     console.log('first...');
-    await page.waitForSelector('a[class=zV_Nj]');
+    // await page.waitForSelector('a[class=zV_Nj]');
+    await page.waitForSelector('div[class=Nm9Fw]');
     // 댓글 더보기 클릭하기
     const moreReply = await page.$('div.NUiEW > button.wpO6b');
     if (moreReply) {
       await page.evaluate((btn) => btn.click(), moreReply);
     }
     const post = await page.evaluate(() => {
+      // likes와 replies가 0인 경우 확인
       let likesData: string, likes: number;
-      likesData = document
-        .querySelectorAll('div.Nm9Fw > a.zV_Nj')[0]
-        .textContent.split(' ')[1];
-      if (likesData.includes(',')) {
-        let temp = '';
-        for (let i = 0; i < likesData.split(',').length; i++) {
-          temp += likesData.split(',')[i];
-        }
-        likesData = temp;
-      }
-      if (document.querySelectorAll('a.zV_Nj').length === 1) {
-        likes = Number(likesData.split('개')[0]);
-      } else if (document.querySelectorAll('a.zV_Nj').length === 0) {
-        likes = 0;
-      } else {
-        likes = Number(likesData.split('명')[0]) + 1;
-      }
       const name = document.querySelector('a.ZIAjV').textContent;
       const title = document.querySelector('.C4VMK > span').textContent;
       const originReplies = document.querySelectorAll('ul.Mr508').length;
       let replies = originReplies;
+      if (document.querySelectorAll('a.zV_Nj').length === 0) {
+        likes = 0;
+      } else {
+        likesData = document
+          .querySelectorAll('div.Nm9Fw > a.zV_Nj')[0]
+          .textContent.split(' ')[1];
 
-      if (originReplies) {
-        const replyOfRepliesData = document.querySelectorAll('span.EizgU');
-        for (let i = 0; i < replyOfRepliesData.length; i++) {
-          replies += Number(
-            replyOfRepliesData[i].textContent.split('(')[1].split('개')[0],
-          );
+        if (likesData.includes(',')) {
+          let temp = '';
+          for (let i = 0; i < likesData.split(',').length; i++) {
+            temp += likesData.split(',')[i];
+          }
+          likesData = temp;
+        }
+        if (document.querySelectorAll('a.zV_Nj').length === 1) {
+          likes = Number(likesData.split('개')[0]);
+        } else {
+          likes = Number(likesData.split('명')[0]) + 1;
+        }
+      }
+      if (originReplies !== 0) {
+        if (originReplies) {
+          const replyOfRepliesData = document.querySelectorAll('span.EizgU');
+          for (let i = 0; i < replyOfRepliesData.length; i++) {
+            replies += Number(
+              replyOfRepliesData[i].textContent.split('(')[1].split('개')[0],
+            );
+          }
         }
       }
 
