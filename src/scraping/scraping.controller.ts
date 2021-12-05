@@ -10,12 +10,17 @@ export class ScrapingController {
   @Post('input')
   findLikeCount(@Body() body: CheckUrlDto): Promise<{
     name: string;
-    title: string;
+    engagements: number;
     likes: number;
     replies: number;
     followers: number;
   }> {
     return this.scrapingService.findLikeCount(body);
+  }
+
+  @Post('inputSum')
+  findLikeCountSum(@Body() body: CheckUrlArrDto) {
+    return this.scrapingService.findLikeCountSum(body);
   }
 
   @Post('inputMany')
