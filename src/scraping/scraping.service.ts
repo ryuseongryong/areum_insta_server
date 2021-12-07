@@ -173,7 +173,7 @@ export class ScrapingService {
     let totalLikes: number = 0,
       totalReplies: number = 0,
       totalFollowers: number = 0,
-      totalEngages: number = 0,
+      totalEngagements: number = 0,
       links: number = 0;
 
     for (let i = 0; i < urlArr.length; i++) {
@@ -264,9 +264,15 @@ export class ScrapingService {
     }
     await page.close();
     await browser.close();
-    totalEngages = totalLikes + totalReplies;
+    totalEngagements = totalLikes + totalReplies;
 
-    return { totalLikes, totalReplies, totalFollowers, totalEngages, links };
+    return {
+      totalLikes,
+      totalReplies,
+      totalFollowers,
+      totalEngagements,
+      links,
+    };
   }
 
   async findLikeCountMany(body: CheckUrlArrDto) {
