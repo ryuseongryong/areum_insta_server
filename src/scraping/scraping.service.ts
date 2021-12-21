@@ -26,7 +26,7 @@ export class ScrapingService {
       height: 1080,
     });
     await page.goto('https://instagram.com');
-    if (await page.$("a[href='/sr_ryu_s2/']")) {
+    if (await page.$("a[href='/nightingale.official/']")) {
       console.log('이미 로그인 되어 있습니다.');
     } else {
       await page.waitForSelector('input[name=username]');
@@ -49,7 +49,25 @@ export class ScrapingService {
 
     console.log('first...');
     // await page.waitForSelector('a[class=zV_Nj]');
-    await page.waitForSelector('div[class=Nm9Fw]');
+    if (
+      await page.evaluate(() => {
+        if (document.querySelector('h2.l4b0S')) {
+          return true;
+        }
+      })
+    ) {
+      await page.close();
+      await browser.close();
+      return {
+        name: '제한된 페이지입니다.',
+        followers: 0,
+        likes: 0,
+        replies: 0,
+        engagements: 0,
+      };
+    }
+    const normalPage = await page.waitForSelector('div[class=Nm9Fw]');
+
     // 댓글 더보기 클릭하기
     const moreReply = await page.$('div.NUiEW > button.wpO6b');
     if (moreReply) {
@@ -155,7 +173,7 @@ export class ScrapingService {
       height: 1080,
     });
     await page.goto('https://instagram.com');
-    if (await page.$("a[href='/sr_ryu_s2/']")) {
+    if (await page.$("a[href='/nightingale.official/']")) {
       console.log('이미 로그인 되어 있습니다.');
     } else {
       await page.waitForSelector('input[name=username]');
@@ -174,93 +192,108 @@ export class ScrapingService {
       totalReplies: number = 0,
       totalFollowers: number = 0,
       totalEngagements: number = 0,
-      links: number = 0;
+      links: number = 0,
+      errorPage: string;
 
     for (let i = 0; i < urlArr.length; i++) {
       await page.goto(body.urlArr[i]);
-      await page.waitForSelector('div[class=Nm9Fw]');
-      await page.waitForTimeout(2000);
-      // 댓글 더보기 클릭하기
-      const moreReply = await page.$('div.NUiEW > button.wpO6b');
-      if (moreReply) {
-        await page.evaluate((btn) => btn.click(), moreReply);
-      }
-      const post = await page.evaluate(() => {
-        // likes와 replies가 0인 경우 확인
-        let likesData: string, likes: number;
-        const name = document.querySelector('a.ZIAjV').textContent;
-        const originReplies = document.querySelectorAll('ul.Mr508').length;
-        let replies = originReplies;
-        if (document.querySelectorAll('a.zV_Nj').length === 0) {
-          likes = 0;
-        } else {
-          likesData = document
-            .querySelectorAll('div.Nm9Fw > a.zV_Nj')[0]
-            .textContent.split(' ')[1];
-
-          if (likesData.includes(',')) {
-            let temp = '';
-            for (let i = 0; i < likesData.split(',').length; i++) {
-              temp += likesData.split(',')[i];
-            }
-            likesData = temp;
+      if (
+        await page.evaluate(() => {
+          if (document.querySelector('h2.l4b0S')) {
+            return true;
           }
-          if (document.querySelectorAll('a.zV_Nj').length === 1) {
-            likes = Number(likesData.split('개')[0]);
+        })
+      ) {
+        errorPage = errorPage + `, ${body.urlArr[i]}`;
+        await page.waitForTimeout(2000);
+      } else {
+        await page.waitForSelector('div[class=Nm9Fw]');
+        await page.waitForTimeout(2000);
+        // 댓글 더보기 클릭하기
+        const moreReply = await page.$('div.NUiEW > button.wpO6b');
+        if (moreReply) {
+          await page.evaluate((btn) => btn.click(), moreReply);
+        }
+        const post = await page.evaluate(() => {
+          // likes와 replies가 0인 경우 확인
+          let likesData: string, likes: number;
+          const name = document.querySelector('a.ZIAjV').textContent;
+          const originReplies = document.querySelectorAll('ul.Mr508').length;
+          let replies = originReplies;
+          if (document.querySelectorAll('a.zV_Nj').length === 0) {
+            likes = 0;
           } else {
-            likes = Number(likesData.split('명')[0]) + 1;
-          }
-        }
-        if (originReplies !== 0) {
-          if (originReplies) {
-            const replyOfRepliesData = document.querySelectorAll('span.EizgU');
-            for (let i = 0; i < replyOfRepliesData.length; i++) {
-              replies += Number(
-                replyOfRepliesData[i].textContent.split('(')[1].split('개')[0],
-              );
+            likesData = document
+              .querySelectorAll('div.Nm9Fw > a.zV_Nj')[0]
+              .textContent.split(' ')[1];
+
+            if (likesData.includes(',')) {
+              let temp = '';
+              for (let i = 0; i < likesData.split(',').length; i++) {
+                temp += likesData.split(',')[i];
+              }
+              likesData = temp;
+            }
+            if (document.querySelectorAll('a.zV_Nj').length === 1) {
+              likes = Number(likesData.split('개')[0]);
+            } else {
+              likes = Number(likesData.split('명')[0]) + 1;
             }
           }
-        }
+          if (originReplies !== 0) {
+            if (originReplies) {
+              const replyOfRepliesData =
+                document.querySelectorAll('span.EizgU');
+              for (let i = 0; i < replyOfRepliesData.length; i++) {
+                replies += Number(
+                  replyOfRepliesData[i].textContent
+                    .split('(')[1]
+                    .split('개')[0],
+                );
+              }
+            }
+          }
 
-        return {
-          name,
-          likes,
-          replies,
-        };
-      });
-      await page.goto('https://www.instagram.com/' + post.name);
-      // await page.waitForSelector('ul[class=k9GMp]');
-      await page.waitForSelector('footer');
-      await page.waitForTimeout(2000);
-      console.log('page change....');
-      const followerData = await page.evaluate(() => {
-        // follower ','가 있는 경우
-        const followersData = document
-          .querySelectorAll('ul.k9GMp > li.Y8-fY > a.-nal3')[0]
-          .textContent.split(' ')[1];
-        let followers: number;
+          return {
+            name,
+            likes,
+            replies,
+          };
+        });
+        await page.goto('https://www.instagram.com/' + post.name);
+        // await page.waitForSelector('ul[class=k9GMp]');
+        await page.waitForSelector('footer');
+        await page.waitForTimeout(2000);
+        console.log('page change....');
+        const followerData = await page.evaluate(() => {
+          // follower ','가 있는 경우
+          const followersData = document
+            .querySelectorAll('ul.k9GMp > li.Y8-fY > a.-nal3')[0]
+            .textContent.split(' ')[1];
+          let followers: number;
 
-        // 천, 백만
-        if (followersData.includes('천')) {
-          followers = Number(followersData.split('천')[0]) * 1000;
-        } else if (followersData.includes('백만')) {
-          followers = Number(followersData.split('백만')[0]) * 1000000;
-        } else if (followersData.includes(',')) {
-          followers = Number(
-            followersData.split(',')[0] + followersData.split(',')[1],
-          );
-        } else {
-          followers = Number(followersData);
-        }
-        return { followers };
-      });
-      const { name, likes, replies } = post;
-      const { followers } = followerData;
-      totalLikes += likes;
-      totalReplies += replies;
-      totalFollowers += followers;
-      links += 1;
-      console.log(links);
+          // 천, 백만
+          if (followersData.includes('천')) {
+            followers = Number(followersData.split('천')[0]) * 1000;
+          } else if (followersData.includes('백만')) {
+            followers = Number(followersData.split('백만')[0]) * 1000000;
+          } else if (followersData.includes(',')) {
+            followers = Number(
+              followersData.split(',')[0] + followersData.split(',')[1],
+            );
+          } else {
+            followers = Number(followersData);
+          }
+          return { followers };
+        });
+        const { name, likes, replies } = post;
+        const { followers } = followerData;
+        totalLikes += likes;
+        totalReplies += replies;
+        totalFollowers += followers;
+        links += 1;
+        console.log(links);
+      }
     }
     await page.close();
     await browser.close();
@@ -272,6 +305,7 @@ export class ScrapingService {
       totalFollowers,
       totalEngagements,
       links,
+      errorPage,
     };
   }
 
@@ -292,7 +326,7 @@ export class ScrapingService {
       height: 1080,
     });
     await page.goto('https://instagram.com');
-    if (await page.$("a[href='/sr_ryu_s2/']")) {
+    if (await page.$("a[href='/nightingale.official/']")) {
       console.log('이미 로그인 되어 있습니다.');
     } else {
       await page.waitForSelector('input[name=username]');
@@ -332,98 +366,111 @@ export class ScrapingService {
         followers: 0,
       };
       await page.goto(urlArr[i]);
-      await page.waitForSelector('div[class=Nm9Fw]');
-      await page.waitForTimeout(2000);
-      // 댓글 더보기 클릭하기
-      const moreReply = await page.$('div.NUiEW > button.wpO6b');
-      if (moreReply) {
-        await page.evaluate((btn) => btn.click(), moreReply);
-      }
-      const post = await page.evaluate(() => {
-        // likes와 replies가 0인 경우 확인
-        let likesData: string, likes: number;
-        const name = document.querySelector('a.ZIAjV').textContent;
-        const originReplies = document.querySelectorAll('ul.Mr508').length;
-        let replies = originReplies;
-        if (document.querySelectorAll('a.zV_Nj').length === 0) {
-          likes = 0;
-        } else {
-          likesData = document
-            .querySelectorAll('div.Nm9Fw > a.zV_Nj')[0]
-            .textContent.split(' ')[1];
-
-          if (likesData.includes(',')) {
-            let temp = '';
-            for (let i = 0; i < likesData.split(',').length; i++) {
-              temp += likesData.split(',')[i];
-            }
-            likesData = temp;
+      if (
+        await page.evaluate(() => {
+          if (document.querySelector('h2.l4b0S')) {
+            return true;
           }
-          if (document.querySelectorAll('a.zV_Nj').length === 1) {
-            likes = Number(likesData.split('개')[0]);
+        })
+      ) {
+        await page.waitForTimeout(2000);
+      } else {
+        await page.waitForSelector('div[class=Nm9Fw]');
+        await page.waitForTimeout(2000);
+        // 댓글 더보기 클릭하기
+        const moreReply = await page.$('div.NUiEW > button.wpO6b');
+        if (moreReply) {
+          await page.evaluate((btn) => btn.click(), moreReply);
+        }
+        const post = await page.evaluate(() => {
+          // likes와 replies가 0인 경우 확인
+          let likesData: string, likes: number;
+          const name = document.querySelector('a.ZIAjV').textContent;
+          const originReplies = document.querySelectorAll('ul.Mr508').length;
+          let replies = originReplies;
+          if (document.querySelectorAll('a.zV_Nj').length === 0) {
+            likes = 0;
           } else {
-            likes = Number(likesData.split('명')[0]) + 1;
-          }
-        }
-        if (originReplies !== 0) {
-          if (originReplies) {
-            const replyOfRepliesData = document.querySelectorAll('span.EizgU');
-            for (let i = 0; i < replyOfRepliesData.length; i++) {
-              replies += Number(
-                replyOfRepliesData[i].textContent.split('(')[1].split('개')[0],
-              );
+            likesData = document
+              .querySelectorAll('div.Nm9Fw > a.zV_Nj')[0]
+              .textContent.split(' ')[1];
+
+            if (likesData.includes(',')) {
+              let temp = '';
+              for (let i = 0; i < likesData.split(',').length; i++) {
+                temp += likesData.split(',')[i];
+              }
+              likesData = temp;
+            }
+            if (document.querySelectorAll('a.zV_Nj').length === 1) {
+              likes = Number(likesData.split('개')[0]);
+            } else {
+              likes = Number(likesData.split('명')[0]) + 1;
             }
           }
-        }
+          if (originReplies !== 0) {
+            if (originReplies) {
+              const replyOfRepliesData =
+                document.querySelectorAll('span.EizgU');
+              for (let i = 0; i < replyOfRepliesData.length; i++) {
+                replies += Number(
+                  replyOfRepliesData[i].textContent
+                    .split('(')[1]
+                    .split('개')[0],
+                );
+              }
+            }
+          }
 
-        return {
-          name,
-          likes,
-          replies,
-        };
-      });
-      await page.goto('https://www.instagram.com/' + post.name);
-      // await page.waitForSelector('ul[class=k9GMp]');
-      await page.waitForSelector('footer');
-      await page.waitForTimeout(2000);
-      console.log('page change....');
-      const followerData = await page.evaluate(() => {
-        // follower ','가 있는 경우
-        const followersData = document
-          .querySelectorAll('ul.k9GMp > li.Y8-fY > a.-nal3')[0]
-          .textContent.split(' ')[1];
-        let followers: number;
+          return {
+            name,
+            likes,
+            replies,
+          };
+        });
+        await page.goto('https://www.instagram.com/' + post.name);
+        // await page.waitForSelector('ul[class=k9GMp]');
+        await page.waitForSelector('footer');
+        await page.waitForTimeout(2000);
+        console.log('page change....');
+        const followerData = await page.evaluate(() => {
+          // follower ','가 있는 경우
+          const followersData = document
+            .querySelectorAll('ul.k9GMp > li.Y8-fY > a.-nal3')[0]
+            .textContent.split(' ')[1];
+          let followers: number;
 
-        // 천, 백만
-        if (followersData.includes('천')) {
-          followers = Number(followersData.split('천')[0]) * 1000;
-        } else if (followersData.includes('백만')) {
-          followers = Number(followersData.split('백만')[0]) * 1000000;
-        } else if (followersData.includes(',')) {
-          followers = Number(
-            followersData.split(',')[0] + followersData.split(',')[1],
-          );
-        } else {
-          followers = Number(followersData);
-        }
-        return { followers };
-      });
-      const { name, likes, replies } = post;
-      const { followers } = followerData;
+          // 천, 백만
+          if (followersData.includes('천')) {
+            followers = Number(followersData.split('천')[0]) * 1000;
+          } else if (followersData.includes('백만')) {
+            followers = Number(followersData.split('백만')[0]) * 1000000;
+          } else if (followersData.includes(',')) {
+            followers = Number(
+              followersData.split(',')[0] + followersData.split(',')[1],
+            );
+          } else {
+            followers = Number(followersData);
+          }
+          return { followers };
+        });
+        const { name, likes, replies } = post;
+        const { followers } = followerData;
 
-      instaObj.link = urlArr[i];
-      instaObj.username = name;
-      instaObj.followers = followers;
-      instaObj.likes = likes;
-      instaObj.replies = replies;
-      instaObj.engagements = likes + replies;
+        instaObj.link = urlArr[i];
+        instaObj.username = name;
+        instaObj.followers = followers;
+        instaObj.likes = likes;
+        instaObj.replies = replies;
+        instaObj.engagements = likes + replies;
 
-      totalFollowers += followers;
-      totalLikes += likes;
-      totalReplies += replies;
-      totalEngagements += likes + replies;
+        totalFollowers += followers;
+        totalLikes += likes;
+        totalReplies += replies;
+        totalEngagements += likes + replies;
 
-      instaArr.push(instaObj);
+        instaArr.push(instaObj);
+      }
     }
     instaArr.push({
       link: '합계',
