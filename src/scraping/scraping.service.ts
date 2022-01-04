@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
+import fs from 'fs';
+import * as $csvWriter from 'csv-writer';
 import { ConfigService } from '@nestjs/config';
 import { CheckUrlDto } from './dto/check-url.dto';
 import { CheckUrlArrDto } from './dto/check-urlArr.dto';
@@ -351,6 +353,7 @@ export class ScrapingService {
     };
 
     const instaArr: Array<InstaObj> = [];
+    const fileData = [];
     let totalFollowers: number = 0,
       totalLikes: number = 0,
       totalReplies: number = 0,
@@ -470,6 +473,7 @@ export class ScrapingService {
         totalEngagements += likes + replies;
 
         instaArr.push(instaObj);
+        fileData.push(instaObj);
       }
     }
     instaArr.push({
@@ -480,8 +484,54 @@ export class ScrapingService {
       replies: totalReplies,
       engagements: totalEngagements,
     });
+    fileData.push({
+      link: '합계',
+      username: '',
+      followers: totalFollowers,
+      likes: totalLikes,
+      replies: totalReplies,
+      engagements: totalEngagements,
+    });
     await page.close();
     await browser.close();
+
+    const date = new Date().toLocaleString();
+    const fileName = `${this.configService.get<string>('FILEPATH') + date}.csv`;
+    const headerColums = [
+      {
+        id: 'link',
+        title: 'link',
+      },
+      {
+        id: 'username',
+        title: 'username',
+      },
+      {
+        id: 'followers',
+        title: 'followers',
+      },
+      {
+        id: 'likes',
+        title: 'likes',
+      },
+      {
+        id: 'replies',
+        title: 'replies',
+      },
+      {
+        id: 'engagements',
+        title: 'engagements',
+      },
+    ];
+
+    const createCW = $csvWriter.createObjectCsvWriter;
+    const csvWriter = createCW({
+      path: fileName,
+      header: headerColums,
+    });
+    csvWriter.writeRecords(instaArr).then(() => {
+      console.log('file saved!');
+    });
 
     return { instaArr };
   }
