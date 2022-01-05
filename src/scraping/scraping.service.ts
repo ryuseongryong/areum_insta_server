@@ -344,6 +344,7 @@ export class ScrapingService {
       await page.waitForNavigation();
     }
     type InstaObj = {
+      index: number;
       link: string;
       username: string;
       likes: number;
@@ -361,6 +362,7 @@ export class ScrapingService {
 
     for (let i = 0; i < urlArr.length; i++) {
       const instaObj: InstaObj = {
+        index: 0,
         link: 'http://instagram.com',
         username: '',
         likes: 0,
@@ -460,6 +462,7 @@ export class ScrapingService {
         const { name, likes, replies } = post;
         const { followers } = followerData;
 
+        instaObj.index = i + 1;
         instaObj.link = urlArr[i];
         instaObj.username = name;
         instaObj.followers = followers;
@@ -477,6 +480,7 @@ export class ScrapingService {
       }
     }
     instaArr.push({
+      index: 0,
       link: '합계',
       username: '',
       followers: totalFollowers,
@@ -498,6 +502,10 @@ export class ScrapingService {
     const date = new Date().toLocaleString();
     const fileName = `${this.configService.get<string>('FILEPATH') + date}.csv`;
     const headerColums = [
+      {
+        id: 'index',
+        title: 'index',
+      },
       {
         id: 'link',
         title: 'link',
